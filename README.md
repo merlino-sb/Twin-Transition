@@ -4,7 +4,7 @@ This repository contains data and codes for the main analysis of the paper "Do t
 
 Users can download all the material by cloning the repository and running the notebook.rmd file:
  - Click Code (green button)
- - Click Download Zip
+ - Click Download ZIP
  - Don't forget to change the path in the code to load the dataset
 
 For further questions and/or clarifications: s.bianchini@unistra.fr 
