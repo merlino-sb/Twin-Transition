@@ -1,0 +1,345 @@
+---
+title: "Code for analysis"
+output: html_notebook
+---
+
+***
+
+The following script reproduces the main analysis of the paper "Do the two make a pair? The environmental effects of the green and digital “twin” transition in European regions". For further questions and/or clarifications: s.bianchini@unistra.fr 
+
+
+***
+### Data 
+
+```{r}
+ rm(list = ls())
+
+ library(dplyr)
+ library(Hmisc)
+ library(AER)
+ library(corrplot)
+ library(lmtest)
+ library(sandwich)
+ library(stargazer)
+ library(PerformanceAnalytics)
+
+ load("~/Desktop/data.RData")
+```
+
+
+***
+### Descriptive statistics
+See Table B1 - APPENDIX B. Additional statistics
+
+```{r}
+# Select variables
+ df <- dat %>%
+   select(ghg_log, psm_ghg_log, gt, dt, 
+          add_manuf, ai, big_data, comp_infra, iot, robotics,
+          pop, va_ind, urban, intermediate, rural, 
+          rile, extreme_left, qoi) 
+ 
+# Table with statistics
+ stargazer(as.data.frame(df), 
+           covariate.labels = c("GHG Emissions (log)", "Pre-sample Mean GHG (log)", 
+                                "Green Tech", "Digital Tech", "Additive Manufacturing", "AI", "Big Data",
+                                "Computing Infrastructures",  "IoT", "Robotics", "Population", 
+                                "Value Added Manufacturing", "Urban", "Intermediate", 
+                                "Rural" , "RILE", "Extreme Left","Quality of Institutions"), 
+           align=TRUE,
+           type="text")
+```
+
+***
+### Correlations
+See Figure B2 - APPENDIX B. Additional statistics
+```{r}
+# Select variables
+ df <- dat %>%
+   select(ghg_log, psm_ghg_log, gt_log_avg, dt_log_avg, 
+          pop_log, va_ind_log, urban, intermediate, rural, 
+          rile, extreme_left, qoi_log) 
+
+# Compute correlation coefficients
+ correlation.matrix <- cor(df)
+ 
+# Results - Table
+ # stargazer(correlation.matrix, align=TRUE, type="text")
+ 
+ colnames(correlation.matrix) <- c("GHG Emissions (log)", "Pre-sample Mean GHG (log)", "Green Tech. (log)",
+                                   "Digital Tech (log)", "Population (log)", 
+                                   "Value Added Manufacturing (log)", "Urban", "Intermediate", "Rural",
+                                   "RILE", "Extreme Left", "Quality of Institutions (log)")
+ 
+ rownames(correlation.matrix) <- c("GHG Emissions (log)", "Pre-sample Mean GHG (log)", "Green Tech. (log)",
+                                   "Digital Tech (log)", "Population (log)", 
+                                   "Value Added Manufacturing (log)", "Urban", "Intermediate", "Rural", 
+                                   "RILE", "Extreme Left", "Quality of Institutions (log)")
+# Results - Heatmap
+ corrplot(correlation.matrix, method = 'square',  diag = F, tl.col = "black", tl.cex = 0.8, addCoef.col ='black', number.cex = 0.7)
+```
+
+***
+### Tobit estimates
+See Table 2. Tobit estimates – The effect of green and digital endowment on regional emissions 
+```{r}
+# Estimate the models
+ mod1 <- tobit(ghg_log ~ gt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ mod2 <- tobit(ghg_log ~ gt_log_avg + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ mod3 <- tobit(ghg_log ~ gt_log_avg + dt_log_avg + I(gt_log_avg * dt_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+
+# Compute robust standard errors
+ mod1 <- coeftest(mod1, vcov.=vcovCL(mod1, cluster=rownames("metro_code"), type="HC0"))
+ mod2 <- coeftest(mod2, vcov.=vcovCL(mod2, cluster=rownames("metro_code"), type="HC0"))
+ mod3 <- coeftest(mod3, vcov.=vcovCL(mod3, cluster=rownames("metro_code"), type="HC0"))
+ 
+# Results
+# Note: Re-run the above code without calculating robust standard errors to obtain information on nb. observations, log-likelihood, Wald tests, etc. 
+ stargazer(mod1, mod2, mod3,
+           covariate.labels = c("Green Tech (log)", "Digital Tech (log)", "Green x Digital Tech (log)", 
+                                "Population (log)", "Value Added Manuf (log)", "Intermediate", "Rural",
+                                "Pre-sample Mean GHG (log)"),
+           omit = c("year", "Constant"),
+           dep.var.labels = "GHG Emissions (log)",
+           align=TRUE,
+           object.names = TRUE, 
+           df = FALSE,
+           type="text")
+```
+
+
+***
+### Tobit estimates - digital categories
+See Table 4. Tobit estimates – The effect of digital technology categories on regional emissions
+
+```{r}
+# Estimate the models
+ mod1  <- tobit(ghg_log ~ gt_log_avg + add_manuf_log_avg + I(gt_log_avg*add_manuf_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, data = dat)
+ mod2  <- tobit(ghg_log ~ gt_log_avg + ai_log_avg + I(gt_log_avg*ai_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, data = dat)
+ mod3  <- tobit(ghg_log ~ gt_log_avg + big_data_log_avg + I(gt_log_avg*big_data_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, data = dat)
+ mod4  <- tobit(ghg_log ~ gt_log_avg + comp_infra_log_avg + I(gt_log_avg*comp_infra_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, data = dat)
+ mod5  <- tobit(ghg_log ~ gt_log_avg + iot_log_avg + I(gt_log_avg*iot_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, data = dat)
+ mod6  <- tobit(ghg_log ~ gt_log_avg + robotics_log_avg + I(gt_log_avg*robotics_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, data = dat)
+ 
+# Compute robust standard errors
+ mod1 <- coeftest(mod1, vcov.=vcovCL(mod1, cluster=rownames("metro_code"), type="HC0"))
+ mod2 <- coeftest(mod2, vcov.=vcovCL(mod2, cluster=rownames("metro_code"), type="HC0"))
+ mod3 <- coeftest(mod3, vcov.=vcovCL(mod3, cluster=rownames("metro_code"), type="HC0"))
+ mod4 <- coeftest(mod4, vcov.=vcovCL(mod4, cluster=rownames("metro_code"), type="HC0"))
+ mod5 <- coeftest(mod5, vcov.=vcovCL(mod5, cluster=rownames("metro_code"), type="HC0"))
+ mod6 <- coeftest(mod6, vcov.=vcovCL(mod6, cluster=rownames("metro_code"), type="HC0"))
+ 
+# Results
+# Note: Re-run the above code without calculating robust standard errors to obtain information on nb. observations, log-likelihood, Wald tests, etc. 
+ stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+           covariate.labels = c("Green Tech (log)", 
+                                
+                                "Additive Manuf (log)",
+                                "Green x Additive Manuf (log)",
+                                
+                                "AI (log)", 
+                                "Green x AI (log)",
+                                
+                                "Big Data (log)", 
+                                "Green x Big Data (log)",
+                                
+                                "Computing Infra (log)", 
+                                "Green x Computing Infra (log)",
+                                
+                                "IoT (log)", 
+                                "Green x IoT (log)",
+                                
+                                "Robotics (log)", 
+                                "Green x Robotics (log)", 
+                                
+                                "Population (log)", "Value Added Manuf (log)",
+                                "Intermediate", "Rural", 
+                                "Pre-sample Mean GHG (log)"),
+           omit = c("year", "Constant"),
+           dep.var.labels = "GHG Emissions (log)",
+           align=TRUE,
+           object.names = TRUE, 
+           df = FALSE,
+           type="text")
+```
+
+
+***
+### Instrumental variables (first step)
+See Table B4. First step IV estimates 
+
+```{r} 
+#-- Estimation of reduced forms (3 configurations with different sets of instruments) --
+ 
+# Instruments: qoi_log + rile
+ reduced.form1 <- lm(gt_log_avg ~ qoi_log + rile + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ 
+# Instruments: qoi_log + extreme_left
+ reduced.form2 <- lm(gt_log_avg ~ qoi_log + extreme_left + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ 
+# Instruments: qoi_log + extreme_left + extreme_right
+ reduced.form3 <- lm(gt_log_avg ~ qoi_log + extreme_left + extreme_right + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ 
+# Compute fitted values (i.e, instrumented variable)
+ dat$gt_log_avg_pred1 <- reduced.form1$fitted.values
+ dat$gt_log_avg_pred2 <- reduced.form2$fitted.values
+ dat$gt_log_avg_pred3 <- reduced.form3$fitted.values
+ 
+# Compute F-test on instruments
+ linearHypothesis(reduced.form1, c("qoi_log=0", "rile=0"))
+```
+
+```{r} 
+ linearHypothesis(reduced.form2, c("qoi_log=0", "extreme_left=0"))
+```
+
+```{r} 
+ linearHypothesis(reduced.form3, c("qoi_log=0", "extreme_left=0", "extreme_right=0"))
+```
+
+```{r}  
+# Compute robust standard errors
+ reduced.form1 <- coeftest(reduced.form1, vcov.=vcovCL(reduced.form1, cluster=rownames("metro_code"), type="HC0"))
+ reduced.form2 <- coeftest(reduced.form2, vcov.=vcovCL(reduced.form2, cluster=rownames("metro_code"), type="HC0"))
+ reduced.form3 <- coeftest(reduced.form3, vcov.=vcovCL(reduced.form3, cluster=rownames("metro_code"), type="HC0"))
+ 
+# Results
+# Note: Re-run the above code without calculating robust standard errors to obtain information on nb. observations, log-likelihood, Wald tests, etc. 
+ stargazer(reduced.form1, reduced.form2, reduced.form3,
+           covariate.labels = c("QOI (log)", "RILE", "Extreme Left", "Extreme Right", "Digital Tech (log)", 
+                                "Population (log)", "Value Added Manuf (log)", "Intermediate", "Rural",
+                                "Pre-sample Mean GHG (log)"),
+           omit = c("year", "Constant"),
+           dep.var.labels = "Green Tech. (log)",
+           align=TRUE,
+           object.names = TRUE, 
+           df = FALSE,
+           type="text") 
+```
+
+
+***
+### Instrumental variables (second step)
+Table 3. IV Estimates – The effect of green and digital endowment on regional emissions
+
+```{r}  
+# Note: 'gt_log_avg_pred2' is the instrumented variable that passes all the tests 
+ 
+# Estimate the models
+ mod1_2step <- lm(ghg_log ~ gt_log_avg_pred2 + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ mod2_2step <- lm(ghg_log ~ gt_log_avg_pred2 + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ mod3_2step <- lm(ghg_log ~ gt_log_avg_pred2 + dt_log_avg + I(gt_log_avg_pred2 * dt_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ 
+# Compute robust standard errors
+ mod1_2step <- coeftest(mod1_2step, vcov.=vcovCL(mod1_2step, cluster=rownames("metro_code"), type="HC0"))
+ mod2_2step <- coeftest(mod2_2step, vcov.=vcovCL(mod2_2step, cluster=rownames("metro_code"), type="HC0"))
+ mod3_2step <- coeftest(mod3_2step, vcov.=vcovCL(mod3_2step, cluster=rownames("metro_code"), type="HC0"))
+ 
+# Results
+# Note: Re-run the above code without calculating robust standard errors to obtain information on nb. observations, log-likelihood, Wald tests, etc. 
+ stargazer(mod1_2step, mod2_2step, mod3_2step, 
+           covariate.labels = c("Green Tech (log) [Instrumented]", "Digital Tech (log)", 
+                                "Green [Instr.] x Digital Tech (log)",
+                                "Population (log)", "Value Added Manuf (log)", "Intermediate", "Rural", 
+                                "Pre-sample Mean GHG (log)"),
+           omit = c("year", "Constant"),
+           align=TRUE,
+           object.names = TRUE, 
+           df = FALSE,
+           type="text") 
+```
+
+```{r}  
+# Over-identification tests  
+# Note: Manually compute the chi-square statistics and the associated p-values
+ 
+#--- Mod1 
+
+# Reduced form and residuals
+ reduced.form2 <- lm(gt_log_avg ~ qoi_log + extreme_left + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+
+ dat$gt_log_avg_pred2 <- reduced.form2$fitted.values
+
+# Chi-square and p-value  
+ mod1_2step <- lm(ghg_log ~ gt_log_avg_pred2 + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ dat$residuals <- mod1_2step$residuals
+ chisq <- summary(lm(residuals ~ qoi_log + extreme_left, dat))$r.squared * nrow(dat)
+ chisq
+ pchisq(chisq, 1, lower.tail=FALSE)
+```
+
+```{r}  
+#--- Mod2
+
+# Reduced form and residuals (same for Mod2 and Mod3)
+ reduced.form2 <- lm(gt_log_avg ~ qoi_log + extreme_left + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+
+ dat$gt_log_avg_pred2 <- reduced.form2$fitted.values
+  
+# Chi-square and p-value  
+ mod2_2step <- lm(ghg_log ~ gt_log_avg_pred2 + dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ dat$residuals <- mod2_2step$residuals
+ chisq <- summary(lm(residuals ~ qoi_log + extreme_left, dat))$r.squared * nrow(dat)
+ chisq
+ pchisq(chisq, 1, lower.tail=FALSE)
+```
+
+```{r} 
+#--- Mod3
+
+# Chi-square and p-value 
+ mod3_2step <- lm(ghg_log ~ gt_log_avg_pred2 + dt_log_avg + I(gt_log_avg_pred2 * dt_log_avg) + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+ dat$residuals <- mod3_2step$residuals
+ chisq <- summary(lm(residuals ~ qoi_log + extreme_left, dat))$r.squared * nrow(dat)
+ chisq
+ pchisq(chisq, 1, lower.tail=FALSE)
+``` 
+
+
+### Model implications 
+See Figure 5. Marginal effects of environmental and digital technologies on GHG emissions
+
+```{r} 
+# Model estimates
+ mod3_2step <- lm(ghg_log ~ gt_log_avg_pred2 + dt_log_avg + gt_log_avg_pred2:dt_log_avg + pop_log + va_ind_log + intermediate + rural + psm_ghg_log + year, dat = dat)
+
+# Marginal effects of green technologies
+ cplot(mod3_2step, x = "dt_log_avg", dx = "gt_log_avg_pred2", what = "effect",
+      xlab = "Digital Tech (log)",
+      ylab = "Marginal effect of Green Tech (log)"
+      )
+``` 
+
+
+```{r} 
+# Marginal effects of digital technologies
+cplot(mod3_2step, x = "gt_log_avg_pred2", dx = "dt_log_avg", what = "effect",
+     xlab = "Green Tech (log)",
+     ylab = "Marginal effect of Digital Tech (log)",
+     xlim = c(0, 7))
+``` 
+
+
+See Figure 6. Visualisation of the main effects of the “twin” transition
+(a) Contour plot of predicted GHG emissions
+
+```{r} 
+ image(mod3_2step, "dt_log_avg", "gt_log_avg_pred2",
+       xlab = "Digital Tech (log)", 
+       ylab = "Green Tech (log)")
+``` 
+
+```{r}
+# 3D plot (not shown in the paper)
+ persp(mod3_2step, "dt_log_avg", "gt_log_avg_pred2", theta = 150, phi=0,
+       xlab="Digital Tech (log)", ylab="Green Tech Instrum  (log)", zlab="GHG Emissions (log)", r=5)
+```    
+
+See Figure 6. Visualisation of the main effects of the “twin” transition
+(b) Scatterplot of environmental and digital technologies
+
+```{r}
+ plot(dat$dt_log_avg, dat$gt_log_avg,
+      xlab = "Digital Tech (log)", ylab = "Green Tech (log)")
+ abline(0, 1, col = "red", lty = 2)
+```    
